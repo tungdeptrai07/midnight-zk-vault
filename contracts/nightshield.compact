@@ -1,0 +1,93 @@
+pragma language_version >= 0.16 && <= 0.22;
+
+import CompactStandardLibrary;
+
+export enum VaultStatus     { uninitialized, active, paused }
+export enum AttestationTier { unverified, standard_tier, institutional_tier }
+
+export ledger status:                VaultStatus;
+export ledger vault_initialized:     Boolean;
+export ledger admin_pk:              Bytes<32>;
+export ledger reserve_commitment:    Bytes<32>;
+export ledger latest_nullifier:      Bytes<32>;
+export ledger latest_payroll_commit: Bytes<32>;
+export ledger latest_tier:           AttestationTier;
+export ledger verified_claims_count: Counter;
+
+witness local_secret_key():                         Bytes<32>;
+witness get_private_salary_band():                  Field;
+witness get_private_salt():                         Bytes<32>;
+witness get_requested_tier():                       AttestationTier;
+witness record_local_receipt(nullifier: Bytes<32>): [];
+
+export pure circuit derive_pk(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "nightshield:pk:v1"), sk]);
+}
+
+export pure circuit compute_nullifier(sk: Bytes<32>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "nightshield:nullifier:v1"), sk, salt]);
+}
+
+pure circuit make_payroll_commitment(salary_field: Field, tier: AttestationTier, salt: Bytes<32>): Bytes<32> {
+  const salary_bytes = salary_field as Bytes<32>;
+  const tier_bytes   = (tier as Field) as Bytes<32>;
+  const inner_hash   = persistentHash<Vector<2, Bytes<32>>>([salary_bytes, tier_bytes]);
+  return persistentHash<Vector<2, Bytes<32>>>([inner_hash, salt]);
+}
+
+export circuit initialize_vault(initial_reserve_commit: Bytes<32>): [] {
+  assert(!vault_initialized, "Vault is already initialized");
+
+  const sk = local_secret_key();
+  const pk = derive_pk(sk);
+
+  admin_pk           = disclose(pk);
+  reserve_commitment = disclose(initial_reserve_commit);
+  status             = VaultStatus.active;
+  vault_initialized  = true;
+}
+
+export circuit submit_private_attestation(): [] {
+  assert(vault_initialized,            "Vault has not been initialized");
+  assert(status == VaultStatus.active, "Vault is not active");
+
+  const sk          = local_secret_key();
+  const salary_band = get_private_salary_band();
+  const salt        = get_private_salt();
+  const tier        = get_requested_tier();
+
+  assert(tier != AttestationTier.unverified, "Requested tier must be verified");
+
+  const nullifier  = compute_nullifier(sk, salt);
+  assert(nullifier != latest_nullifier, "Duplicate nullifier rejected");
+
+  const commitment = make_payroll_commitment(salary_band, tier, salt);
+  record_local_receipt(nullifier);
+
+  latest_nullifier      = disclose(nullifier);
+  latest_payroll_commit = disclose(commitment);
+  latest_tier           = disclose(tier);
+  verified_claims_count.increment(1);
+}
+
+export circuit pause_vault(): [] {
+  assert(vault_initialized,            "Vault is not initialized");
+  assert(status == VaultStatus.active, "Vault is already paused");
+
+  const sk = local_secret_key();
+  const pk = derive_pk(sk);
+  assert(pk == admin_pk, "Only vault administrator can pause");
+
+  status = VaultStatus.paused;
+}
+
+export circuit resume_vault(): [] {
+  assert(vault_initialized,            "Vault is not initialized");
+  assert(status == VaultStatus.paused, "Vault is not paused");
+
+  const sk = local_secret_key();
+  const pk = derive_pk(sk);
+  assert(pk == admin_pk, "Only vault administrator can resume");
+
+  status = VaultStatus.active;
+}
