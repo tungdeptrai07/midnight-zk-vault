@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NightShield — Midnight ZK Payroll &amp; Attestation Vault</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">M</div>
+      <div>
+        <h1>NightShield ZK Vault</h1>
+        <p class="subtitle">Midnight Network · Dual-Ledger Privacy Payroll &amp; Compliance (`contracts/nightshield.compact`)</p>
+      </div>
+    </div>
+    <div class="pills">
+      <span id="compileBadge" class="pill">Compact: Checking…</span>
+      <span id="statusBadge" class="pill">Vault: uninitialized</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="grid-two">
+      <article class="card">
+        <h2>1. Private Witness Inputs (Local Only — Never Sent to Public Ledger)</h2>
+        <div class="form-stack">
+          <label>
+            Admin / Contributor Local Secret Key (`Bytes&lt;32&gt;`)
+            <input id="skInput" type="text" value="0x2222222222222222222222222222222222222222222222222222222222222222" />
+          </label>
+          <div class="row-two">
+            <label>
+              Private Monthly Salary (`Field` USD)
+              <input id="salaryInput" type="number" min="500" max="500000" value="9500" />
+            </label>
+            <label>
+              Attestation Tier (`AttestationTier`)
+              <select id="tierInput">
+                <option value="standard_tier">standard_tier</option>
+                <option value="institutional_tier">institutional_tier</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Witness Commitment Salt (`Bytes&lt;32&gt;`)
+            <input id="saltInput" type="text" value="0xa1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90" />
+          </label>
+          <div class="btn-row">
+            <button id="initBtn" type="button" class="btn">1. Initialize Vault (`initialize_vault`)</button>
+            <button id="attestBtn" type="button" class="btn primary">2. Prove &amp; Disclose Nullifier (`submit_private_attestation`)</button>
+          </div>
+          <div id="feedbackBox" class="msg-box" hidden></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>2. Midnight Public Ledger State (`export ledger`)</h2>
+        <div id="ledgerBox" class="ledger-grid"></div>
+        <h2 style="margin-top:16px">Compiled `nightshield.compact` Manifest</h2>
+        <div id="manifestBox" class="item-box muted">Loading contract manifest…</div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>3. Zero-Knowledge Circuit Execution &amp; Selective Disclosure Log</h2>
+      <div id="txLog" class="stack">
+        <div class="item-box muted">Execute `initialize_vault` or `submit_private_attestation` above to inspect disclosed vs. hidden witness fields.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
